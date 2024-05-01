@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, &exit_statistics);
 
-    memset(g_ft_ping.seq_packets_sent, 0, 256);
+    memset(g_ft_ping.seq_packets_sent, 0, USHRT_MAX / 8 + 1);
 
     ping_loop();
 

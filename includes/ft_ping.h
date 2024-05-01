@@ -39,6 +39,7 @@
 #define PING_MISSING_HOST	PROG_NAME": missing host operand"
 #define PING_UNKNOWN_HOST	PROG_NAME": unknown host"
 #define PING_IPV6_SUPPORT	PROG_NAME": ipv6 not supported"
+#define PING_DUPE_ERROR		" (DUP!)"
 
 
 #define MIN_DATA_PACKET_SIZE	0
@@ -112,7 +113,7 @@ typedef struct s_ft_ping {
 
 	uint64_t		packets_sent;
 	uint64_t		packets_received;
-	uint8_t			seq_packets_sent[USHRT_MAX];
+	uint8_t			seq_packets_sent[USHRT_MAX / 8 + 1];
 } t_ft_ping;
 
 
