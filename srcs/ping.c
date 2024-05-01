@@ -179,11 +179,12 @@ static void receive_packet(void) {
     struct iphdr    *ip_reply;
     struct icmphdr  *icmp_reply;
     uint16_t        curr_seq;
+    uint16_t        cksum;
     uint8_t         is_dupe = 0;
 
     // Receive packet
     if (g_ft_ping.packets_sent > g_ft_ping.packets_received) {
-        ssize_t recv_len = recvfrom(g_ft_ping.sockfd, g_ft_ping.buffer, sizeof(g_ft_ping.buffer), 0, NULL, NULL);
+        int recv_len = recvfrom(g_ft_ping.sockfd, g_ft_ping.buffer, sizeof(g_ft_ping.buffer), 0, NULL, NULL);
         
         if (recv_len < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
             fprintf(stderr, "%s: recvfrom: %s\n", PROG_NAME, strerror(errno));
@@ -192,12 +193,26 @@ static void receive_packet(void) {
 
         if (recv_len >= 0) {
             ip_reply = (struct iphdr *)g_ft_ping.buffer;
-            icmp_reply = (struct icmphdr *)&(g_ft_ping.buffer[ip_reply->ihl * 4]);
+            icmp_reply = (struct icmphdr *)(g_ft_ping.buffer + (ip_reply->ihl * 4));
 
             if (icmp_reply->type == ICMP_ECHOREPLY) {
                 if (icmp_reply->un.echo.id != htons(getpid())) {
                     return ;
                 }
+
+                if (recv_len < ip_reply->ihl * 4 + (int)sizeof(struct icmphdr)) {
+                    fprintf(stderr, "packet too short (%d bytes) from %s\n", recv_len, inet_ntoa(g_ft_ping.sa4.sin_addr));
+                    return ;
+                }
+
+                cksum = icmp_reply->checksum;
+                icmp_reply->checksum = 0;
+                icmp_reply->checksum = hdr_checksum(icmp_reply, recv_len - ip_reply->ihl * 4);
+
+                if (cksum != icmp_reply->checksum) {
+                    fprintf(stderr, "checksum mismatch from %s\n", inet_ntoa(g_ft_ping.sa4.sin_addr));
+                }
+
                 print_base_response(recv_len, ip_reply);
 
                 curr_seq = htons(icmp_reply->un.echo.sequence);
@@ -207,6 +222,7 @@ static void receive_packet(void) {
                 } else {
                     is_dupe = 1;
                 }
+
                 print_advanced_response(ip_reply, icmp_reply, is_dupe);
             } else if (icmp_reply->type != ICMP_ECHO) {
                 print_base_response(recv_len, ip_reply);
