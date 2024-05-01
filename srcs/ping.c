@@ -165,9 +165,9 @@ static void print_error_response(const struct iphdr *ip_reply, const struct icmp
         inet_ntop(AF_INET, &error_iphdr->daddr, ip_str, sizeof(ip_str));
         printf("%s\n", ip_str);
 
-        printf("ICMP: type %x, code %x, size %lu, id 0x%04x, seq 0x%04x\n",
+        printf("ICMP: type %x, code %x, size %u, id 0x%04x, seq 0x%04x\n",
             error_icmphdr->type, error_icmphdr->code,
-            sizeof(struct icmphdr) + g_ft_ping.options.data_packet_size, htons(error_icmphdr->un.echo.id), htons(error_icmphdr->un.echo.sequence));
+            htons(error_iphdr->tot_len) - (error_iphdr->ihl * 4), htons(error_icmphdr->un.echo.id), htons(error_icmphdr->un.echo.sequence));
     }
 }
 
@@ -264,7 +264,7 @@ void ping_loop(void) {
     struct timeval  tv_ping_start = {0, 0}, tv_last_sent = {0, 0};
     uint16_t        curr_seq;
     char            ip_str[INET_ADDRSTRLEN];
-    char            id_verbose[24] = "";
+    char            id_verbose[32] = "";
 
     fill_base_ip_header();
     fill_base_icmp_header();
@@ -275,7 +275,7 @@ void ping_loop(void) {
     if (g_ft_ping.options.flags & VERBOSE) {
         uint16_t id = htons(((struct icmphdr *)(g_ft_ping.packet + sizeof(struct iphdr)))->un.echo.id);
 
-        sprintf(id_verbose, ", id 0x%x = %d", id, id);
+        sprintf(id_verbose, ", id 0x%04x = %d", id, id);
     }
     printf("PING %s (%s): %d data bytes%s\n", g_ft_ping.host_arg_name, ip_str, g_ft_ping.options.data_packet_size, id_verbose);
 
